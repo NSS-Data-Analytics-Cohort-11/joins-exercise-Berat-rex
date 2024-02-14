@@ -22,12 +22,13 @@ ORDER BY worldwide_gross ASC;
 
 
 --2. What year has the highest average imdb rating?
-SELECT rating.imdb_rating, specs.release_year
-FROM rating
-join specs
-on (rating.movie_id = specs.movie_id)
-ORDER BY rating.imdb_rating DESC;
---ANSWER: 2008. highest rating 9.0
+select specs.release_year, avg(rating.imdb_rating) as avg_rating
+from specs
+inner join rating
+using (movie_id)
+group by specs.release_year
+order by  avg(rating.imdb_rating) DESC
+--ANSWER: 1991. highest rating 7.4
 
 
 
@@ -45,20 +46,24 @@ ORDER BY revenue.worldwide_gross DESC
 
 
 --4. Write a query that returns, for each distributor in the distributors table, the distributor name and the number of movies associated with that distributor in the movies table. Your result set should include all of the distributors, whether or not they have any movies in the movies table.
-SELECT distinct distributor_id, company_name, film_title
+SELECT distributors.company_name, count(film_title) AS film_count
 FROM distributors
-FULL JOIN specs
+left JOIN specs
 ON (distributors.distributor_id = specs.domestic_distributor_id)
-ORDER by distributor_id asc
+group by distributors.company_name
+order by  film_count
 
 
 
 --5. Write a query that returns the five distributors with the highest average movie budget.
-SELECT distinct domestic_distributor_id, film_title, film_budget
-FROM specs
-JOIN revenue
-on (specs.movie_id = revenue.movie_id)
-ORDER BY film_budget DESC
+SELECT distributors.company_name, avg(revenue.film_budget)
+FROM distributors
+INNER JOIN specs
+on (specs.domestic_distributor_id = distributors.distributor_id)
+INNER JOIN revenue
+on revenue.movie_id = specs.movie_id
+GROUP BY distributors.company_name
+ORDER BY avg(film_budget) DESC
 limit 5
 
 
@@ -72,28 +77,31 @@ INNER JOIN rating
 ON (specs.movie_id = rating.movie_id)
 WHERE headquarters NOT LIKE '%CA%'
 ORDER BY imdb_rating DESC
---ANSWER: 2 movies. Dirty Dancing has rating of 7.0
+---------------------OR--------------------
+SELECT film_title, company_name, distributor_id, headquarters, avg(imdb_rating) as avg_imdb_rating
+FROM distributors
+INNER JOIN specs
+ON distributors.distributor_id = specs.domestic_distributor_id
+INNER JOIN rating
+ON specs.movie_id = rating.movie_id
+WHERE headquarters NOT LIKE '%CA%'
+GROUP BY film_title, company_name, distributor_id, headquarters
+ORDER BY  avg_imdb_rating DESC
+--ANSWER: 2 movies. Dirty Dancing has the higher rating of 7.0
 
 
 
 --7. Which have a higher average rating, movies which are over two hours long or movies which are under two hours?
-SELECT avg(imdb_rating), length_in_min
-FROM rating
-JOIN specs
-ON (rating.movie_id = specs.movie_id)
-WHERE length_in_min > 120
-GROUP BY length_in_min
-ORDER BY length_in_min DESC
-
-
-SELECT avg(imdb_rating), length_in_min
-FROM rating
-JOIN specs
-ON (rating.movie_id = specs.movie_id)
-WHERE length_in_min > 120
-GROUP BY length_in_min
-ORDER BY length_in_min DESC
-
+SELECT
+CASE
+	WHEN length_in_min >= 120 THEN '>2 Hours'
+	ELSE '<2 Hours'
+END AS length_of_movie, ROUND(avg(imdb_rating),2) AS avg_rating
+FROM specs
+INNER JOIN rating
+USING (movie_id)
+GROUP BY length_of_movie
+ORDER BY avg_rating DESC
 --ANSWER: Movies which are over two hours long have a higher average rating.
 
 
